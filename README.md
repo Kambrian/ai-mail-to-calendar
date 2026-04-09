@@ -3,6 +3,7 @@
 Create calendar events or tasks from emails using AI-powered parsing. Right-click any email, and AI extracts the title, date/time, location, and description — then writes directly to your CalDAV calendar.
 
 **Author:** Jiaxin Han (jiaxin.han@sjtu.edu.cn)  
+**Repository:** https://github.com/Kambrian/ai-mail-to-calendar  
 **Built with:** [OpenClaw](https://openclaw.ai)  
 **License:** MIT
 
@@ -36,6 +37,25 @@ Create calendar events or tasks from emails using AI-powered parsing. Right-clic
 1. Clone this repository
 2. Open Thunderbird → `Ctrl+Shift+A` → ⚙️ → **Debug Add-ons**
 3. Click **Load Temporary Add-on** → select `manifest.json`
+
+---
+
+## Submission to Thunderbird Add-ons
+
+To submit to [addons.thunderbird.net](https://addons.thunderbird.net/):
+
+1. Go to https://addons.thunderbird.net/developers/
+2. Sign in with your Mozilla account
+3. Click **Submit a New Add-on**
+4. Upload the `.xpi` from [the latest release](https://github.com/Kambrian/ai-mail-to-calendar/releases)
+5. Fill in listing details:
+   - **Name:** AI Mail to Calendar
+   - **Summary:** Create calendar events/tasks from emails using AI
+   - **Category:** Mail & News
+   - **Description:** Copy from the README Features section
+   - **Home Page:** https://github.com/Kambrian/ai-mail-to-calendar
+   - **Support Email:** jiaxin.han@sjtu.edu.cn
+6. Submit for review
 
 ---
 
