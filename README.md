@@ -6,7 +6,6 @@ Create calendar events or tasks from emails using AI-powered parsing. Right-clic
 **Repository:** https://github.com/Kambrian/ai-mail-to-calendar  
 **Built with:** [OpenClaw](https://openclaw.ai)  
 **License:** MIT
-
 ---
 
 ## Features
@@ -24,7 +23,7 @@ Create calendar events or tasks from emails using AI-powered parsing. Right-clic
 
 ### From Thunderbird Add-ons Website
 1. Open Thunderbird → **Add-ons and Themes** (`Ctrl+Shift+A`)
-2. Search for "AI Mail to Calendar"
+2. Search for "[AI Mail to Calendar](https://addons.thunderbird.net/en-GB/thunderbird/addon/ai-mail-to-calendar/)" 
 3. Click **Add to Thunderbird**
 
 ### From GitHub Release (.xpi)
@@ -32,31 +31,6 @@ Create calendar events or tasks from emails using AI-powered parsing. Right-clic
 2. Open Thunderbird → **Add-ons and Themes** (`Ctrl+Shift+A`)
 3. Click ⚙️ gear icon → **Install Add-on From File**
 4. Select the downloaded `.xpi` file
-
-### For Development (Temporary)
-1. Clone this repository
-2. Open Thunderbird → `Ctrl+Shift+A` → ⚙️ → **Debug Add-ons**
-3. Click **Load Temporary Add-on** → select `manifest.json`
-
----
-
-## Submission to Thunderbird Add-ons
-
-To submit to [addons.thunderbird.net](https://addons.thunderbird.net/):
-
-1. Go to https://addons.thunderbird.net/developers/
-2. Sign in with your Mozilla account
-3. Click **Submit a New Add-on**
-4. Upload the `.xpi` from [the latest release](https://github.com/Kambrian/ai-mail-to-calendar/releases)
-5. Fill in listing details:
-   - **Name:** AI Mail to Calendar
-   - **Summary:** Create calendar events/tasks from emails using AI
-   - **Category:** Mail & News
-   - **Description:** Copy from the README Features section
-   - **Home Page:** https://github.com/Kambrian/ai-mail-to-calendar
-   - **Support Email:** jiaxin.han@sjtu.edu.cn
-6. Submit for review
-
 ---
 
 ## Configuration
@@ -242,22 +216,3 @@ ai-mail-to-calendar/
     ├── progress.html          # Progress/status window
     └── progress.js            # Progress updates listener
 ```
-
----
-
-## Contributing
-
-Issues and PRs welcome at [GitHub](https://github.com/Kambrian/ai-mail-to-calendar).
-
----
-
-## License
-
-MIT — see [LICENSE](LICENSE).
-
----
-
-## Credits
-
-- Built by **Jiaxin Han** (jiaxin.han@sjtu.edu.cn) with [OpenClaw](https://openclaw.ai)
-- Uses the Thunderbird WebExtension API and CalDAV protocol
