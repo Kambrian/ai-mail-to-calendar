@@ -1,0 +1,32 @@
+{
+  "manifest_version": 2,
+  "name": "AI Mail to Calendar",
+  "version": "1.0.0",
+  "description": "Create calendar events or tasks from emails using AI parsing",
+  "icons": {
+    "48": "icons/icon48.png",
+    "96": "icons/icon96.png"
+  },
+  "permissions": [
+    "messagesRead",
+    "storage",
+    "menus",
+    "notifications",
+    "<all_urls>",
+    "activeTab"
+  ],
+  "background": {
+    "scripts": ["background/background.js"]
+  },
+  "options_ui": {
+    "page": "options/options.html"
+  },
+  "author": "Jiaxin Han <jiaxin.han@sjtu.edu.cn>",
+  "homepage_url": "https://github.com/Kambrian/ai-mail-to-calendar",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "ai-mail-to-calendar@openclaw.ai",
+      "strict_min_version": "128.0"
+    }
+  }
+}

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Confirm Event/Task</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; background: #f5f5f5; color: #333; }
+    h1 { font-size: 1.2em; margin-bottom: 16px; color: #1a1a2e; }
+    .field { margin-bottom: 12px; }
+    label { display: block; font-weight: 600; font-size: 0.85em; margin-bottom: 4px; color: #555; }
+    input, textarea, select {
+      width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9em;
+    }
+    input:focus, textarea:focus, select:focus { outline: none; border-color: #4a6cf7; box-shadow: 0 0 0 2px rgba(74,108,247,0.2); }
+    textarea { resize: vertical; min-height: 60px; }
+    .type-toggle { display: flex; gap: 8px; margin-bottom: 16px; }
+    .type-btn { flex: 1; padding: 10px; border: 2px solid #ddd; border-radius: 6px; text-align: center; cursor: pointer; font-weight: 600; background: #fff; transition: all 0.2s; }
+    .type-btn.active { border-color: #4a6cf7; background: #eef1ff; color: #4a6cf7; }
+    .type-btn:hover { border-color: #4a6cf7; }
+    .field-row { display: flex; gap: 10px; }
+    .field-row .field { flex: 1; }
+    .actions { display: flex; gap: 10px; margin-top: 20px; }
+    button { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em; font-weight: 600; }
+    .btn-create { background: #4a6cf7; color: #fff; flex: 1; }
+    .btn-create:hover { background: #3b5de7; }
+    .btn-cancel { background: #95a5a6; color: #fff; }
+    .btn-cancel:hover { background: #7f8c8d; }
+    .btn-ai { background: #9b59b6; color: #fff; }
+    .btn-ai:hover { background: #8e44ad; }
+    .btn-ai:disabled { background: #bbb; cursor: not-allowed; }
+    #error { color: #e74c3c; font-size: 0.85em; margin-top: 8px; display: none; }
+
+    /* AI Chat Dialog */
+    .ai-chat { margin-top: 12px; display: none; }
+    .ai-chat.visible { display: block; }
+    .ai-chat-history { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 10px; max-height: 200px; overflow-y: auto; margin-bottom: 8px; font-size: 0.85em; }
+    .ai-msg { margin-bottom: 8px; line-height: 1.4; white-space: pre-wrap; }
+    .ai-msg.user { color: #2c3e50; }
+    .ai-msg.user::before { content: "🧑 "; }
+    .ai-msg.assistant { color: #8e44ad; }
+    .ai-msg.assistant::before { content: "🤖 "; }
+    .ai-msg.system { color: #888; font-style: italic; font-size: 0.9em; }
+    .ai-input-row { display: flex; gap: 8px; }
+    .ai-input-row input { flex: 1; }
+    .ai-input-row button { flex-shrink: 0; padding: 8px 14px; }
+  </style>
+</head>
+<body>
+  <h1>📅 Create Event / Task</h1>
+
+  <div class="type-toggle">
+    <div class="type-btn active" data-type="event">📅 Event</div>
+    <div class="type-btn" data-type="task">✅ Task</div>
+  </div>
+
+  <div class="field">
+    <label>Title</label>
+    <input type="text" id="title">
+  </div>
+  <div class="field-row">
+    <div class="field">
+      <label id="startLabel">Start</label>
+      <input type="datetime-local" id="start">
+    </div>
+    <div class="field" id="endField">
+      <label id="endLabel">End</label>
+      <input type="datetime-local" id="end">
+    </div>
+  </div>
+  <div class="field">
+    <label>Location</label>
+    <input type="text" id="location" placeholder="(optional)">
+  </div>
+  <div class="field">
+    <label>Description</label>
+    <textarea id="description"></textarea>
+  </div>
+  <div class="field">
+    <label>Calendar</label>
+    <select id="calendar"></select>
+  </div>
+
+  <!-- AI Chat Section -->
+  <div class="ai-chat" id="aiChat">
+    <div class="ai-chat-history" id="aiChatHistory">
+      <div class="ai-msg system">Tell the AI how to adjust the event/task. E.g. "start should be now, deadline is April 20"</div>
+    </div>
+    <div class="ai-input-row">
+      <input type="text" id="aiInput" placeholder="e.g. Change start to now, end to April 20...">
+      <button class="btn-ai" id="aiSendBtn">Send</button>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn-cancel" id="cancelBtn">Cancel</button>
+    <button class="btn-ai" id="aiToggleBtn">🤖 Ask AI to Adjust</button>
+    <button class="btn-create" id="createBtn">Create</button>
+  </div>
+  <div id="error"></div>
+
+  <script src="confirm.js"></script>
+</body>
+</html>
