@@ -2,10 +2,10 @@
 
 Create calendar events or tasks from emails using AI-powered parsing. Right-click any email, and AI extracts the title, date/time, location, and description — then writes directly to your CalDAV calendar.
 
-**Author:** Jiaxin Han (jiaxin.han@sjtu.edu.cn)  
-**Repository:** https://github.com/Kambrian/ai-mail-to-calendar  
-**Built with:** [OpenClaw](https://openclaw.ai)  
-**License:** MIT
+- **Author:** [Jiaxin Han](jiaxin.han@sjtu.edu.cn)  
+- **Repository:** https://github.com/Kambrian/ai-mail-to-calendar  
+- **Built with:** [OpenClaw](https://openclaw.ai)  
+- **License:** MIT
 ---
 
 ## Features
