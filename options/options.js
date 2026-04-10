@@ -126,13 +126,13 @@ function showAcctStatus(row, msg, type) {
 }
 
 async function loadSettings() {
-  const data = await browser.storage.local.get(defaults);
+  const data = await browser.storage.local.get(null); // get ALL stored data
   const provider = data.aiProvider || "openai";
   document.getElementById("aiProvider").value = provider;
-  document.getElementById("aiBaseUrl").value = data.aiBaseUrl;
-  document.getElementById("aiApiKey").value = data.aiApiKey;
-  document.getElementById("aiModel").value = data.aiModel;
-  document.getElementById("aiTimezone").value = data.aiTimezone;
+  document.getElementById("aiBaseUrl").value = data.aiBaseUrl || defaults.aiBaseUrl;
+  document.getElementById("aiApiKey").value = data.aiApiKey || "";
+  document.getElementById("aiModel").value = data.aiModel || defaults.aiModel;
+  document.getElementById("aiTimezone").value = data.aiTimezone || defaults.aiTimezone;
   onProviderChange(provider, true); // update hints without overwriting values
 
   // Migration: convert old "calendars" format to new "accounts" format
@@ -216,18 +216,6 @@ async function saveSettings() {
   showStatus("Settings saved!", "success");
 }
 
-// ── Test AI Connection (verbose) ────────────────────────
-async function testAiConnection() {
-  const baseUrl = document.getElementById("aiBaseUrl").value.trim().replace(/\/+$/, "");
-  const apiKey = document.getElementById("aiApiKey").value.trim();
-  const model = document.getElementById("aiModel").value.trim();
-
-  if (!baseUrl || !apiKey || !model) {
-    showStatus("⚠️ Fill in Base URL, API Key, and Model ID first.", "error");
-    return;
-  }
-
-// ── Test AI Connection (verbose, multi-provider) ──────
 async function testAiConnection() {
   const provider = document.getElementById("aiProvider").value;
   const baseUrl = document.getElementById("aiBaseUrl").value.trim().replace(/\/+$/, "");
