@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "AI Mail to Calendar",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Create calendar events or tasks from emails using AI parsing",
   "icons": {
     "48": "icons/icon48.png",
