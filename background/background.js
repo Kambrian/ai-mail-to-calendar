@@ -97,7 +97,7 @@ browser.menus.onClicked.addListener(async (info, tab) => {
 
     // Load settings
     const settings = await browser.storage.local.get({
-      aiBaseUrl: "", aiApiKey: "", aiModel: "", aiTimezone: "Asia/Shanghai", calendars: []
+      aiProvider: "openai", aiBaseUrl: "", aiApiKey: "", aiModel: "", aiTimezone: "Asia/Shanghai", calendars: []
     });
 
     if (!settings.aiBaseUrl || !settings.aiApiKey || !settings.aiModel) {
