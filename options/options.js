@@ -1,12 +1,48 @@
 // options.js — Settings page logic
 
+const PROVIDERS = {
+  openai: {
+    label: "OpenAI-compatible",
+    defaultBaseUrl: "https://api.openai.com/v1",
+    defaultModel: "gpt-4o-mini",
+    hint: "Any OpenAI-compatible endpoint (OpenAI, DeepSeek, Groq, Ollama, Requesty, OpenRouter, etc.)",
+    modelHint: "e.g. gpt-4o-mini, deepseek-chat, llama3-8b-8192"
+  },
+  anthropic: {
+    label: "Anthropic (Claude)",
+    defaultBaseUrl: "https://api.anthropic.com",
+    defaultModel: "claude-3-5-haiku-20241022",
+    hint: "Direct Anthropic API or Requesty anthropic-messages endpoint",
+    modelHint: "e.g. claude-3-5-haiku-20241022, claude-opus-4-5"
+  },
+  google: {
+    label: "Google Gemini",
+    defaultBaseUrl: "https://generativelanguage.googleapis.com",
+    defaultModel: "gemini-2.0-flash",
+    hint: "Google Gemini API (get key at aistudio.google.com)",
+    modelHint: "e.g. gemini-2.0-flash, gemini-1.5-pro"
+  }
+};
+
 const defaults = {
+  aiProvider: "openai",
   aiBaseUrl: "https://api.openai.com/v1",
   aiApiKey: "",
   aiModel: "gpt-4o-mini",
   aiTimezone: "Asia/Shanghai",
-  accounts: []  // [{name, baseUrl, username, password, eventPath, taskPath}]
+  accounts: []
 };
+
+function onProviderChange(provider, keepValues = false) {
+  const p = PROVIDERS[provider];
+  if (!p) return;
+  document.getElementById("aiProviderHint").textContent = p.hint;
+  document.getElementById("aiModelHint").textContent = p.modelHint;
+  if (!keepValues) {
+    document.getElementById("aiBaseUrl").value = p.defaultBaseUrl;
+    document.getElementById("aiModel").value = p.defaultModel;
+  }
+}
 
 function createAccountRow(acct = {}) {
   const row = document.createElement("div");
@@ -91,10 +127,13 @@ function showAcctStatus(row, msg, type) {
 
 async function loadSettings() {
   const data = await browser.storage.local.get(defaults);
+  const provider = data.aiProvider || "openai";
+  document.getElementById("aiProvider").value = provider;
   document.getElementById("aiBaseUrl").value = data.aiBaseUrl;
   document.getElementById("aiApiKey").value = data.aiApiKey;
   document.getElementById("aiModel").value = data.aiModel;
   document.getElementById("aiTimezone").value = data.aiTimezone;
+  onProviderChange(provider, true); // update hints without overwriting values
 
   // Migration: convert old "calendars" format to new "accounts" format
   let accounts = data.accounts || [];
@@ -132,6 +171,7 @@ async function loadSettings() {
 async function saveSettings() {
   const accounts = getAccounts();
   const settings = {
+    aiProvider: document.getElementById("aiProvider").value,
     aiBaseUrl: document.getElementById("aiBaseUrl").value.trim().replace(/\/+$/, ""),
     aiApiKey: document.getElementById("aiApiKey").value.trim(),
     aiModel: document.getElementById("aiModel").value.trim(),
@@ -187,39 +227,55 @@ async function testAiConnection() {
     return;
   }
 
-  const endpoint = `${baseUrl}/chat/completions`;
-  showStatus(`🔄 Sending request to ${endpoint}\n   Model: ${model}\n   Waiting for response...`, "success", 0);
+// ── Test AI Connection (verbose, multi-provider) ──────
+async function testAiConnection() {
+  const provider = document.getElementById("aiProvider").value;
+  const baseUrl = document.getElementById("aiBaseUrl").value.trim().replace(/\/+$/, "");
+  const apiKey = document.getElementById("aiApiKey").value.trim();
+  const model = document.getElementById("aiModel").value.trim();
+
+  if (!baseUrl || !apiKey || !model) {
+    showStatus("⚠️ Fill in Base URL, API Key, and Model ID first.", "error");
+    return;
+  }
 
   const startTime = Date.now();
+  let endpoint, reqHeaders, reqBody;
+
+  if (provider === "anthropic") {
+    endpoint = `${baseUrl}/v1/messages`;
+    reqHeaders = { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" };
+    reqBody = JSON.stringify({ model, max_tokens: 10, messages: [{ role: "user", content: "Reply with exactly one word: OK" }] });
+  } else if (provider === "google") {
+    endpoint = `${baseUrl}/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    reqHeaders = { "Content-Type": "application/json" };
+    reqBody = JSON.stringify({ contents: [{ parts: [{ text: "Reply with exactly one word: OK" }] }], generationConfig: { maxOutputTokens: 10 } });
+  } else {
+    endpoint = `${baseUrl}/chat/completions`;
+    reqHeaders = { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` };
+    reqBody = JSON.stringify({ model, messages: [{ role: "user", content: "Reply with exactly one word: OK" }], max_tokens: 10 });
+  }
+
+  showStatus(`🔄 Sending request to ${endpoint}\n   Provider: ${PROVIDERS[provider]?.label}\n   Model: ${model}\n   Waiting for response...`, "success", 0);
+
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000);
-
-    const resp = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: model,
-        messages: [{ role: "user", content: "Reply with exactly one word: OK" }],
-        max_tokens: 10
-      }),
-      signal: controller.signal
-    });
-
+    const resp = await fetch(endpoint, { method: "POST", headers: reqHeaders, body: reqBody, signal: controller.signal });
     clearTimeout(timeoutId);
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
     if (resp.ok) {
       const data = await resp.json();
-      const reply = data.choices?.[0]?.message?.content || "(empty response)";
-      const modelUsed = data.model || model;
+      let reply = "";
+      if (provider === "anthropic") reply = data.content?.[0]?.text || "(empty)";
+      else if (provider === "google") reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "(empty)";
+      else reply = data.choices?.[0]?.message?.content || "(empty)";
       showStatus(
         `✅ AI connection successful!\n` +
+        `   Provider: ${PROVIDERS[provider]?.label}\n` +
         `   Endpoint: ${endpoint}\n` +
-        `   Model: ${modelUsed}\n` +
+        `   Model: ${data.model || model}\n` +
         `   Response: "${reply.substring(0, 100)}"\n` +
         `   Time: ${elapsed}s`,
         "success", 10000
@@ -228,8 +284,8 @@ async function testAiConnection() {
       const errBody = await resp.text();
       showStatus(
         `❌ AI error (HTTP ${resp.status} ${resp.statusText})\n` +
+        `   Provider: ${PROVIDERS[provider]?.label}\n` +
         `   Endpoint: ${endpoint}\n` +
-        `   Model: ${model}\n` +
         `   Time: ${elapsed}s\n` +
         `   Response: ${errBody.substring(0, 300)}`,
         "error", 15000
@@ -387,5 +443,8 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("testAi").addEventListener("click", testAiConnection);
   document.getElementById("addAccount").addEventListener("click", () => {
     document.getElementById("accountList").appendChild(createAccountRow());
+  });
+  document.getElementById("aiProvider").addEventListener("change", (e) => {
+    onProviderChange(e.target.value, false);
   });
 });

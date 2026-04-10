@@ -140,7 +140,7 @@ browser.menus.onClicked.addListener(async (info, tab) => {
     const params = new URLSearchParams({
       data: JSON.stringify(parsed),
       calendars: JSON.stringify(settings.calendars.map(c => ({ name: c.name, type: c.type || "both" }))),
-      aiSettings: JSON.stringify({ aiBaseUrl: settings.aiBaseUrl, aiApiKey: settings.aiApiKey, aiModel: settings.aiModel, aiTimezone: settings.aiTimezone })
+      aiSettings: JSON.stringify({ aiProvider: settings.aiProvider || "openai", aiBaseUrl: settings.aiBaseUrl, aiApiKey: settings.aiApiKey, aiModel: settings.aiModel, aiTimezone: settings.aiTimezone })
     });
 
     await browser.windows.create({
@@ -204,8 +204,13 @@ browser.runtime.onMessage.addListener(async (message) => {
   }
 });
 
-// ── AI Call ──────────────────────────────────────────────
+// ── AI Call (multi-provider) ──────────────────────────
 async function callAI(settings, subject, from, date, body, isSelectedText) {
+  const provider = settings.aiProvider || "openai";
+  const baseUrl = (settings.aiBaseUrl || "").replace(/\/+$/, "");
+  const model = settings.aiModel;
+  const apiKey = settings.aiApiKey;
+
   const systemPrompt = `You are an assistant that extracts calendar event or task information from emails.
 Given an email, extract structured data and return ONLY valid JSON (no markdown, no explanation).
 
@@ -233,29 +238,29 @@ Return this exact JSON structure:
 }`;
 
   const textLabel = isSelectedText ? "Selected text from email" : "Email body";
-  const userPrompt = `Email subject: ${subject}
-From: ${from}
-Date sent: ${date}
+  const userPrompt = `Email subject: ${subject}\nFrom: ${from}\nDate sent: ${date}\n\n${textLabel}:\n${body.substring(0, 3000)}`;
 
-${textLabel}:
-${body.substring(0, 3000)}`;
+  let endpoint, reqHeaders, reqBody;
 
-  const resp = await fetch(`${settings.aiBaseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${settings.aiApiKey}`
-    },
-    body: JSON.stringify({
-      model: settings.aiModel,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt }
-      ],
-      max_tokens: 2000,
-      temperature: 0.1
-    })
-  });
+  if (provider === "anthropic") {
+    endpoint = `${baseUrl}/v1/messages`;
+    reqHeaders = { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" };
+    reqBody = JSON.stringify({ model, max_tokens: 2000, system: systemPrompt, messages: [{ role: "user", content: userPrompt }] });
+  } else if (provider === "google") {
+    endpoint = `${baseUrl}/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    reqHeaders = { "Content-Type": "application/json" };
+    reqBody = JSON.stringify({
+      system_instruction: { parts: [{ text: systemPrompt }] },
+      contents: [{ parts: [{ text: userPrompt }] }],
+      generationConfig: { maxOutputTokens: 2000, temperature: 0.1 }
+    });
+  } else {
+    endpoint = `${baseUrl}/chat/completions`;
+    reqHeaders = { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` };
+    reqBody = JSON.stringify({ model, messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }], max_tokens: 2000, temperature: 0.1 });
+  }
+
+  const resp = await fetch(endpoint, { method: "POST", headers: reqHeaders, body: reqBody });
 
   if (!resp.ok) {
     const errText = await resp.text();
@@ -263,7 +268,11 @@ ${body.substring(0, 3000)}`;
   }
 
   const data = await resp.json();
-  let content = data.choices?.[0]?.message?.content || "";
+  let content = "";
+  if (provider === "anthropic") content = data.content?.[0]?.text || "";
+  else if (provider === "google") content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  else content = data.choices?.[0]?.message?.content || "";
+
   console.log("[email2event] Raw AI response:", content);
 
   const parsed = extractJSON(content);

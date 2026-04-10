@@ -47,11 +47,21 @@
 
   <div class="section">
     <h2>🤖 AI Configuration</h2>
-    <div class="field">
-      <label for="aiBaseUrl">Base URL</label>
-      <input type="url" id="aiBaseUrl" placeholder="https://api.openai.com/v1">
-      <div class="hint">OpenAI-compatible API endpoint (e.g. https://api.openai.com/v1)</div>
+    <div class="field-row">
+      <div class="field" style="flex:0.6">
+        <label for="aiProvider">Provider</label>
+        <select id="aiProvider">
+          <option value="openai">OpenAI-compatible</option>
+          <option value="anthropic">Anthropic (Claude)</option>
+          <option value="google">Google Gemini</option>
+        </select>
+      </div>
+      <div class="field" style="flex:1">
+        <label for="aiBaseUrl">Base URL</label>
+        <input type="url" id="aiBaseUrl" placeholder="https://api.openai.com/v1">
+      </div>
     </div>
+    <div class="hint" id="aiProviderHint">Any OpenAI-compatible endpoint (OpenAI, DeepSeek, Groq, Ollama, Requesty, etc.)</div>
     <div class="field">
       <label for="aiApiKey">API Key</label>
       <input type="password" id="aiApiKey" placeholder="sk-...">
@@ -59,6 +69,7 @@
     <div class="field">
       <label for="aiModel">Model ID</label>
       <input type="text" id="aiModel" placeholder="gpt-4o-mini">
+      <div class="hint" id="aiModelHint"></div>
     </div>
     <div class="field">
       <label for="aiTimezone">Default Timezone</label>

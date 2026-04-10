@@ -126,22 +126,25 @@ Default timezone: ${aiSettings.aiTimezone || "Asia/Shanghai"}
 IMPORTANT: Return ONLY the JSON, no explanation.`;
 
   try {
-    const resp = await fetch(`${aiSettings.aiBaseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${aiSettings.aiApiKey}`
-      },
-      body: JSON.stringify({
-        model: aiSettings.aiModel,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: msg }
-        ],
-        max_tokens: 2000,
-        temperature: 0.1
-      })
-    });
+    const provider = aiSettings.aiProvider || "openai";
+    const baseUrl = (aiSettings.aiBaseUrl || "").replace(/\/+$/, "");
+    let endpoint, reqHeaders, reqBody;
+
+    if (provider === "anthropic") {
+      endpoint = `${baseUrl}/v1/messages`;
+      reqHeaders = { "Content-Type": "application/json", "x-api-key": aiSettings.aiApiKey, "anthropic-version": "2023-06-01" };
+      reqBody = JSON.stringify({ model: aiSettings.aiModel, max_tokens: 2000, system: systemPrompt, messages: [{ role: "user", content: msg }] });
+    } else if (provider === "google") {
+      endpoint = `${baseUrl}/v1beta/models/${aiSettings.aiModel}:generateContent?key=${aiSettings.aiApiKey}`;
+      reqHeaders = { "Content-Type": "application/json" };
+      reqBody = JSON.stringify({ system_instruction: { parts: [{ text: systemPrompt }] }, contents: [{ parts: [{ text: msg }] }], generationConfig: { maxOutputTokens: 2000, temperature: 0.1 } });
+    } else {
+      endpoint = `${baseUrl}/chat/completions`;
+      reqHeaders = { "Content-Type": "application/json", "Authorization": `Bearer ${aiSettings.aiApiKey}` };
+      reqBody = JSON.stringify({ model: aiSettings.aiModel, messages: [{ role: "system", content: systemPrompt }, { role: "user", content: msg }], max_tokens: 2000, temperature: 0.1 });
+    }
+
+    const resp = await fetch(endpoint, { method: "POST", headers: reqHeaders, body: reqBody });
 
     if (!resp.ok) {
       const err = await resp.text();
@@ -150,7 +153,10 @@ IMPORTANT: Return ONLY the JSON, no explanation.`;
     }
 
     const data = await resp.json();
-    let content = data.choices?.[0]?.message?.content || "";
+    let content = "";
+    if (provider === "anthropic") content = data.content?.[0]?.text || "";
+    else if (provider === "google") content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    else content = data.choices?.[0]?.message?.content || "";
 
     // Strip think blocks and code fences
     content = content.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
