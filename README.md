@@ -47,14 +47,13 @@ The plugin uses an **OpenAI-compatible API** to parse emails. Any provider that 
 | **Model ID** | Model to use | `gpt-4o-mini` |
 | **Default Timezone** | Timezone for date parsing | `Asia/Shanghai` |
 
-#### Compatible AI Providers
+#### Example AI Providers
 
 | Provider | Base URL | Notes |
 |----------|----------|-------|
 | OpenAI | `https://api.openai.com/v1` | Any GPT model |
 | DeepSeek | `https://api.deepseek.com/v1` | Cost-effective |
 | [Requesty](https://app.requesty.ai/join?ref=72171fe4) | `https://router.requesty.ai/v1` | Multi-provider router |
-| OpenRouter | `https://openrouter.ai/api/v1` | Multi-provider router |
 | Local (Ollama) | `http://localhost:11434/v1` | Self-hosted |
 | Any OpenAI-compatible | `https://your-server.com/v1` | Custom endpoint |
 
@@ -72,28 +71,6 @@ Add your CalDAV accounts. Each account represents one CalDAV server with both ca
 | **Password** | CalDAV auth password | `••••••••` |
 | **Events Collection Path** | Subfolder for events | `Calendar` |
 | **Tasks Collection Path** | Subfolder for tasks | `Tasks` |
-
-#### Finding Your CalDAV URL
-
-**From Thunderbird:**
-1. Right-click a calendar in the Calendar panel
-2. Select **Properties**
-3. Copy the **Location** URL
-4. The **Base URL** is everything up to the last path segment
-   - Full URL: `https://mail.sjtu.edu.cn/dav/user@sjtu.edu.cn/Calendar`
-   - Base URL: `https://mail.sjtu.edu.cn/dav/user@sjtu.edu.cn`
-   - Events Path: `Calendar`
-
-**Common CalDAV providers:**
-
-| Provider | Base URL Pattern |
-|----------|-----------------|
-| Nextcloud | `https://cloud.example.com/remote.php/dav/calendars/USERNAME` |
-| Radicale | `https://example.com/USERNAME` |
-| Baikal | `https://example.com/dav.php/calendars/USERNAME` |
-| iCloud | `https://caldav.icloud.com/USERID` |
-| SOGo | `https://example.com/SOGo/dav/USERNAME/Calendar` |
-| Zimbra / SJTU Mail | `https://mail.sjtu.edu.cn/dav/USERNAME` |
 
 #### Auto-Discover
 
