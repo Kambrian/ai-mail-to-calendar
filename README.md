@@ -38,16 +38,27 @@ After installing, go to **Add-ons → AI Mail to Calendar → Preferences** (or 
 
 ### 🤖 AI Configuration
 
-The plugin uses an **OpenAI-compatible API** to parse emails. Any provider that supports the `/v1/chat/completions` endpoint will work.
+The plugin supports three AI provider types:
+
+| Provider | API Format | Default Base URL |
+|----------|-----------|------------------|
+| **OpenAI-compatible** | `/v1/chat/completions` | `https://api.openai.com/v1` |
+| **Anthropic (Claude)** | `/v1/messages` | `https://api.anthropic.com` |
+| **Google Gemini** | `generateContent` | `https://generativelanguage.googleapis.com` |
+
+Select your provider from the dropdown — the Base URL and Model ID will auto-fill with sensible defaults.
 
 | Field | Description | Example |
 |-------|-------------|---------|
+| **Provider** | API type | `OpenAI-compatible` |
 | **Base URL** | API endpoint (without trailing slash) | `https://api.openai.com/v1` |
 | **API Key** | Your API key | `sk-...` |
 | **Model ID** | Model to use | `gpt-4o-mini` |
 | **Default Timezone** | Timezone for date parsing | `Asia/Shanghai` |
 
-#### Example AI Providers
+#### OpenAI-compatible Providers
+
+Any provider that supports the `/v1/chat/completions` endpoint works with the "OpenAI-compatible" option:
 
 | Provider | Base URL | Notes |
 |----------|----------|-------|
