@@ -3,8 +3,7 @@
 Create calendar events or tasks from emails using AI-powered parsing. Right-click any email, and AI extracts the title, date/time, location, and description — then writes directly to your CalDAV calendar.
 
 - **Author:** [Jiaxin Han](jiaxin.han@sjtu.edu.cn)  
-- **Repository:** https://github.com/Kambrian/ai-mail-to-calendar  
-- **Built with:** [OpenClaw](https://openclaw.ai)  
+- **Built with:** [OpenClaw](https://openclaw.ai) along with gpt and claude 
 - **License:** MIT
 ---
 
@@ -53,10 +52,9 @@ The plugin uses an **OpenAI-compatible API** to parse emails. Any provider that 
 | Provider | Base URL | Notes |
 |----------|----------|-------|
 | OpenAI | `https://api.openai.com/v1` | Any GPT model |
-| Requesty | `https://router.requesty.ai/v1` | Multi-provider router |
 | DeepSeek | `https://api.deepseek.com/v1` | Cost-effective |
-| Groq | `https://api.groq.com/openai/v1` | Fast inference |
-| OpenRouter | `https://openrouter.ai/api/v1` | Multi-model |
+| [Requesty](https://app.requesty.ai/join?ref=72171fe4) | `https://router.requesty.ai/v1` | Multi-provider router |
+| OpenRouter | `https://openrouter.ai/api/v1` | Multi-provider router |
 | Local (Ollama) | `http://localhost:11434/v1` | Self-hosted |
 | Any OpenAI-compatible | `https://your-server.com/v1` | Custom endpoint |
 
@@ -143,25 +141,6 @@ If AI didn't parse correctly:
 
 ---
 
-## How It Works
-
-1. **Email Parsing** — The plugin reads the email subject, sender, date, and body (or selected text)
-2. **AI Extraction** — Sends the email content to your configured AI with a structured prompt
-3. **JSON Response** — AI returns structured data: title, start, end, location, description, type
-4. **User Confirmation** — A dialog shows the extracted data for review and editing
-5. **CalDAV Write** — Creates a VEVENT or VTODO via CalDAV PUT (with POST fallback)
-
-### AI Behavior
-
-- **Deadlines** → Creates a **task** with start=now, due=deadline
-- **Meetings/Appointments** → Creates an **event** with start and end times
-- **Date without time** → Defaults to 08:00–09:00
-- **No date found** → Uses the email's sent date
-- Supports `<think>` blocks (Minimax, DeepSeek-R1, etc.) — automatically stripped
-- Supports markdown code fences in response — automatically stripped
-
----
-
 ## Compatibility
 
 - **Thunderbird:** 128+ (Manifest V2 WebExtension)
@@ -178,12 +157,12 @@ git clone https://github.com/Kambrian/ai-mail-to-calendar.git
 cd ai-mail-to-calendar
 
 # Package as .xpi
-zip -r email-to-event.xpi . -x '*.git*' 'README.md' 'LICENSE' '.github/*'
+zip -r ai-mail-to-calendar.xpi . -x '*.git*' 'README.md' 'LICENSE' '.github/*'
 
 # Or use Python (if zip is not available)
 python3 -c "
 import zipfile, os
-with zipfile.ZipFile('email-to-event.xpi', 'w', zipfile.ZIP_DEFLATED) as zf:
+with zipfile.ZipFile('ai-mail-to-calendar.xpi', 'w', zipfile.ZIP_DEFLATED) as zf:
     for root, dirs, files in os.walk('.'):
         dirs[:] = [d for d in dirs if not d.startswith('.')]
         for f in files:
