@@ -14,8 +14,9 @@ Create calendar events or tasks from emails using AI-powered parsing. Right-clic
 - 📅 **Event or Task** — toggle between VEVENT and VTODO
 - 🤖 **Ask AI to Adjust** — chat with AI in the confirm dialog to refine the extracted data
 - 📋 **Unified CalDAV accounts** — configure once, auto-routes events and tasks to the right collection
-- 🔍 **Auto-Discover** — automatically finds calendar and task collections on your CalDAV server
+- 🔍 **Auto-Discover** — automatically finds calendar and task collections on your CalDAV server (with safer filtering to avoid mail folders like Inbox/Trash)
 - 📝 **Selected text support** — select text in an email body and only send that to AI
+- 🔗 **Source email link** — created events/tasks include a source email link via iCal `URL` field (`mid:`)
 - 🔄 **Progress window** — persistent status display during AI parsing and CalDAV writing
 
 ## Installation
@@ -86,6 +87,8 @@ Add your CalDAV accounts. Each account represents one CalDAV server with both ca
 #### Auto-Discover
 
 Click **🔍 Auto-Discover** after entering the Base URL and credentials. The plugin will query the server (using CalDAV `PROPFIND`) and automatically populate the Events and Tasks collection paths.
+
+> **Note:** Auto-Discover now applies safer folder filtering and avoids common mail/system folders (e.g. `Inbox`, `Trash`, `Drafts`, `Sent`) when selecting CalDAV collections.
 
 #### Test Connection
 
