@@ -383,20 +383,24 @@ async function autoDiscover(row) {
       // Only keep first-level children under base path
       if (relPath.includes("/")) continue;
 
-      const blockLower = block.toLowerCase();
       const hasVevent = /<[^>]*comp[^>]*name\s*=\s*"vevent"/i.test(block);
       const hasVtodo = /<[^>]*comp[^>]*name\s*=\s*"vtodo"/i.test(block);
-      const isCollection = blockLower.includes("<d:collection") || blockLower.includes("<collection") || blockLower.includes("calendar");
 
       const nameMatch = block.match(/<(?:[^:>]+:)?displayname[^>]*>([^<]*)<\/(?:[^:>]+:)?displayname>/i);
       const name = nameMatch ? nameMatch[1].trim() : "";
       const relLower = relPath.toLowerCase();
+      const nameLower = name.toLowerCase();
 
-      const looksLikeTaskByName = relLower === "tasks" || relLower === "task" || name.toLowerCase() === "tasks" || name.toLowerCase() === "task";
-      const looksLikeEventByName = relLower === "calendar" || relLower === "calendars" || name.toLowerCase() === "calendar" || name.toLowerCase() === "calendars";
+      // Skip common mail/system folders that are not CalDAV collections
+      const bannedFolders = new Set(["inbox", "trash", "drafts", "sent", "junk", "spam", "archive", "deleted", "bin"]);
+      if (bannedFolders.has(relLower) || bannedFolders.has(nameLower)) continue;
 
+      const looksLikeTaskByName = relLower === "tasks" || relLower === "task" || nameLower === "tasks" || nameLower === "task";
+      const looksLikeEventByName = relLower === "calendar" || relLower === "calendars" || nameLower === "calendar" || nameLower === "calendars";
+
+      // Only trust explicit CalDAV component support or clear folder naming
       const isTask = hasVtodo || looksLikeTaskByName;
-      const isEvent = hasVevent || looksLikeEventByName || (isCollection && !isTask);
+      const isEvent = hasVevent || looksLikeEventByName;
 
       if (isTask && !taskPath) {
         taskPath = relPath;
