@@ -348,7 +348,7 @@ async function writeToCalDAV(calendar, eventData) {
   const source = eventData.sourceEmail || null;
   const sourceLines = [];
   if (source) {
-    if (source.midUrl) sourceLines.push(`Source Email Link: ${source.midUrl}`);
+    if (source.midUrl) sourceLines.push(`Source Email: (open via URL field)`);
     if (source.messageId) sourceLines.push(`Source Email Message-ID: ${source.messageId}`);
     if (source.subject) sourceLines.push(`Source Email Subject: ${source.subject}`);
     if (source.from) sourceLines.push(`Source Email From: ${source.from}`);
