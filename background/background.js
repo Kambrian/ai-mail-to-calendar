@@ -95,6 +95,19 @@ browser.menus.onClicked.addListener(async (info, tab) => {
     const date = msg.date ? new Date(msg.date).toISOString() : "";
     const bodyForAI = selectedText || fullBody;
 
+    const messageIdRaw = full?.headers?.["message-id"]?.[0] || "";
+    const messageId = messageIdRaw ? String(messageIdRaw).trim() : "";
+    const messageIdNoBrackets = messageId.replace(/^<|>$/g, "");
+    const midUrl = messageIdNoBrackets ? `mid:${messageIdNoBrackets}` : null;
+
+    const sourceEmail = {
+      messageId: messageId || null,
+      midUrl,
+      subject,
+      from: from || null,
+      sentAt: date || null
+    };
+
     // Load settings
     const settings = await browser.storage.local.get({
       aiProvider: "openai", aiBaseUrl: "", aiApiKey: "", aiModel: "", aiTimezone: "Asia/Shanghai", calendars: []
@@ -139,6 +152,7 @@ browser.menus.onClicked.addListener(async (info, tab) => {
     const popupUrl = browser.runtime.getURL("confirm/confirm.html");
     const params = new URLSearchParams({
       data: JSON.stringify(parsed),
+      sourceEmail: JSON.stringify(sourceEmail),
       calendars: JSON.stringify(settings.calendars.map(c => ({ name: c.name, type: c.type || "both" }))),
       aiSettings: JSON.stringify({ aiProvider: settings.aiProvider || "openai", aiBaseUrl: settings.aiBaseUrl, aiApiKey: settings.aiApiKey, aiModel: settings.aiModel, aiTimezone: settings.aiTimezone })
     });
@@ -331,6 +345,19 @@ async function writeToCalDAV(calendar, eventData) {
   const now = formatICalDate(new Date());
   let ical;
 
+  const source = eventData.sourceEmail || null;
+  const sourceLines = [];
+  if (source) {
+    if (source.midUrl) sourceLines.push(`Source Email Link: ${source.midUrl}`);
+    if (source.messageId) sourceLines.push(`Source Email Message-ID: ${source.messageId}`);
+    if (source.subject) sourceLines.push(`Source Email Subject: ${source.subject}`);
+    if (source.from) sourceLines.push(`Source Email From: ${source.from}`);
+    if (source.sentAt) sourceLines.push(`Source Email Date: ${source.sentAt}`);
+  }
+  const mergedDescription = [eventData.description || "", sourceLines.length ? sourceLines.join("\n") : ""]
+    .filter(Boolean)
+    .join("\n\n");
+
   if (eventData.type === "task") {
     const due = eventData.end ? formatICalDate(new Date(eventData.end)) : (eventData.start ? formatICalDate(new Date(eventData.start)) : "");
     const dtstart = eventData.start ? formatICalDate(new Date(eventData.start)) : "";
@@ -345,7 +372,8 @@ async function writeToCalDAV(calendar, eventData) {
       dtstart ? `DTSTART:${dtstart}` : "",
       due ? `DUE:${due}` : "",
       eventData.location ? `LOCATION:${escapeICalText(eventData.location)}` : "",
-      eventData.description ? `DESCRIPTION:${escapeICalText(eventData.description)}` : "",
+      mergedDescription ? `DESCRIPTION:${escapeICalText(mergedDescription)}` : "",
+      source?.midUrl ? `URL:${escapeICalText(source.midUrl)}` : "",
       "STATUS:NEEDS-ACTION",
       "END:VTODO",
       "END:VCALENDAR"
@@ -364,7 +392,8 @@ async function writeToCalDAV(calendar, eventData) {
       `DTEND:${dtend}`,
       `SUMMARY:${escapeICalText(eventData.title)}`,
       eventData.location ? `LOCATION:${escapeICalText(eventData.location)}` : "",
-      eventData.description ? `DESCRIPTION:${escapeICalText(eventData.description)}` : "",
+      mergedDescription ? `DESCRIPTION:${escapeICalText(mergedDescription)}` : "",
+      source?.midUrl ? `URL:${escapeICalText(source.midUrl)}` : "",
       "END:VEVENT",
       "END:VCALENDAR"
     ].filter(Boolean).join("\r\n");

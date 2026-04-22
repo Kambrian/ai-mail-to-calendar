@@ -1,10 +1,11 @@
 // confirm.js — Confirm popup logic with AI chat
 
 const params = new URLSearchParams(window.location.search);
-let eventData, calendars, aiSettings;
+let eventData, calendars, aiSettings, sourceEmail;
 
 try {
   eventData = JSON.parse(params.get("data"));
+  sourceEmail = JSON.parse(params.get("sourceEmail") || "null");
   calendars = JSON.parse(params.get("calendars"));
   aiSettings = JSON.parse(params.get("aiSettings") || "null");
 } catch (e) {
@@ -232,7 +233,8 @@ document.getElementById("createBtn").addEventListener("click", async () => {
     start: new Date(start).toISOString(),
     end: end ? new Date(end).toISOString() : null,
     location: location || null,
-    description: description || null
+    description: description || null,
+    sourceEmail: sourceEmail || null
   };
 
   await browser.runtime.sendMessage({
