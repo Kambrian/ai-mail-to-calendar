@@ -352,47 +352,72 @@ async function autoDiscover(row) {
       return;
     }
 
-    // Parse the multistatus response for calendar/task collections
     const text = resp.text;
     let eventPath = "", taskPath = "";
     const discovered = [];
 
-    // Simple XML parsing: find <response> blocks
-    const responses = text.split(/<\/?(?:d:)?response>/i).filter(s => s.includes("<"));
-    for (const block of responses) {
-      const hrefMatch = block.match(/<(?:d:)?href[^>]*>([^<]+)<\/(?:d:)?href>/i);
+    const base = new URL(baseUrl + "/");
+    const basePath = base.pathname.replace(/\/+$/, "");
+
+    // Parse <response> blocks in a tolerant way
+    const responseBlocks = text.match(/<(?:[^:>]+:)?response\b[\s\S]*?<\/(?:[^:>]+:)?response>/gi) || [];
+
+    for (const block of responseBlocks) {
+      const hrefMatch = block.match(/<(?:[^:>]+:)?href[^>]*>([^<]+)<\/(?:[^:>]+:)?href>/i);
       if (!hrefMatch) continue;
-      const href = hrefMatch[1];
 
-      const isCalendar = block.includes("calendar") || block.includes("VEVENT");
-      const isTask = block.includes("VTODO");
-      const nameMatch = block.match(/<(?:d:)?displayname[^>]*>([^<]*)<\/(?:d:)?displayname>/i);
-      const name = nameMatch ? nameMatch[1] : "";
+      const hrefRaw = decodeURIComponent(hrefMatch[1].trim());
+      let hrefUrl;
+      try {
+        hrefUrl = new URL(hrefRaw, base.origin);
+      } catch {
+        continue;
+      }
 
-      // Extract the relative path from href
-      const relPath = href.replace(baseUrl, "").replace(/^\/+/, "").replace(/\/+$/, "");
-      if (!relPath) continue; // skip the parent itself
+      const hrefPath = hrefUrl.pathname.replace(/\/+$/, "");
+      if (!hrefPath.startsWith(basePath)) continue;
+
+      const relPath = hrefPath.slice(basePath.length).replace(/^\/+/, "");
+      if (!relPath) continue; // parent itself
+
+      // Only keep first-level children under base path
+      if (relPath.includes("/")) continue;
+
+      const blockLower = block.toLowerCase();
+      const hasVevent = /<[^>]*comp[^>]*name\s*=\s*"vevent"/i.test(block);
+      const hasVtodo = /<[^>]*comp[^>]*name\s*=\s*"vtodo"/i.test(block);
+      const isCollection = blockLower.includes("<d:collection") || blockLower.includes("<collection") || blockLower.includes("calendar");
+
+      const nameMatch = block.match(/<(?:[^:>]+:)?displayname[^>]*>([^<]*)<\/(?:[^:>]+:)?displayname>/i);
+      const name = nameMatch ? nameMatch[1].trim() : "";
+      const relLower = relPath.toLowerCase();
+
+      const looksLikeTaskByName = relLower === "tasks" || relLower === "task" || name.toLowerCase() === "tasks" || name.toLowerCase() === "task";
+      const looksLikeEventByName = relLower === "calendar" || relLower === "calendars" || name.toLowerCase() === "calendar" || name.toLowerCase() === "calendars";
+
+      const isTask = hasVtodo || looksLikeTaskByName;
+      const isEvent = hasVevent || looksLikeEventByName || (isCollection && !isTask);
 
       if (isTask && !taskPath) {
         taskPath = relPath;
         discovered.push(`📋 Tasks: "${name || relPath}" → ${relPath}`);
-      } else if (isCalendar && !eventPath) {
+      } else if (isEvent && !eventPath) {
         eventPath = relPath;
         discovered.push(`📅 Events: "${name || relPath}" → ${relPath}`);
       }
     }
 
-    if (eventPath) {
-      row.querySelector(".acct-event-path").value = eventPath;
-    }
-    if (taskPath) {
-      row.querySelector(".acct-task-path").value = taskPath;
-    }
+    // Fallback defaults for common setups
+    if (!eventPath) eventPath = "Calendar";
+    if (!taskPath) taskPath = "Tasks";
+
+    row.querySelector(".acct-event-path").value = eventPath;
+    row.querySelector(".acct-task-path").value = taskPath;
 
     if (discovered.length > 0) {
-      showAcctStatus(row, `✅ Discovered:\n${discovered.join("\n")}`, "success");
+      showAcctStatus(row, `✅ Discovered:\n${discovered.join("\n")}` + (discovered.length < 2 ? `\nℹ️ Fallback applied for missing path(s).` : ""), "success");
     } else {
-      showAcctStatus(row, "⚠️ No calendar/task collections found. Enter paths manually.", "error");
+      showAcctStatus(row, "⚠️ Auto-discover did not return clear collections. Filled defaults: Calendar / Tasks. Please verify.", "error");
     }
   } catch (e) {
     showAcctStatus(row, `❌ Discovery failed: ${e.message}`, "error");
