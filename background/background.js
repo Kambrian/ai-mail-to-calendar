@@ -346,17 +346,7 @@ async function writeToCalDAV(calendar, eventData) {
   let ical;
 
   const source = eventData.sourceEmail || null;
-  const sourceLines = [];
-  if (source) {
-    if (source.midUrl) sourceLines.push(`Source Email: (open via URL field)`);
-    if (source.messageId) sourceLines.push(`Source Email Message-ID: ${source.messageId}`);
-    if (source.subject) sourceLines.push(`Source Email Subject: ${source.subject}`);
-    if (source.from) sourceLines.push(`Source Email From: ${source.from}`);
-    if (source.sentAt) sourceLines.push(`Source Email Date: ${source.sentAt}`);
-  }
-  const mergedDescription = [eventData.description || "", sourceLines.length ? sourceLines.join("\n") : ""]
-    .filter(Boolean)
-    .join("\n\n");
+  const mergedDescription = eventData.description || "";
 
   if (eventData.type === "task") {
     const due = eventData.end ? formatICalDate(new Date(eventData.end)) : (eventData.start ? formatICalDate(new Date(eventData.start)) : "");
