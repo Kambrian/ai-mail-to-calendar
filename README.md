@@ -134,7 +134,7 @@ If AI didn't parse correctly:
 
 ## Compatibility
 
-- **Thunderbird:** 128+ (Manifest V2 WebExtension)
+- **Thunderbird:** 128+ (Manifest V3 MailExtension)
 - **Tested on:** Thunderbird 140.9.0esr (Ubuntu)
 - **CalDAV servers:** Any standard CalDAV server (Nextcloud, Radicale, Baikal, iCloud, SOGo, Zimbra, etc.)
 
