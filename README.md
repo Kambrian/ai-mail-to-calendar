@@ -147,20 +147,13 @@ If AI didn't parse correctly:
 git clone https://github.com/Kambrian/ai-mail-to-calendar.git
 cd ai-mail-to-calendar
 
-# Package as .xpi
-zip -r ai-mail-to-calendar.xpi . -x '*.git*' 'README.md' 'LICENSE' '.github/*'
-
-# Or use Python (if zip is not available)
-python3 -c "
-import zipfile, os
-with zipfile.ZipFile('ai-mail-to-calendar.xpi', 'w', zipfile.ZIP_DEFLATED) as zf:
-    for root, dirs, files in os.walk('.'):
-        dirs[:] = [d for d in dirs if not d.startswith('.')]
-        for f in files:
-            if f in ('README.md', 'LICENSE'): continue
-            zf.write(os.path.join(root, f), os.path.join(root, f)[2:])
-"
+# Build a clean XPI from an explicit source allowlist
+python3 scripts/build_xpi.py
+# Output: dist/ai-mail-to-calendar-<version>.xpi
 ```
+
+The build script deliberately includes only runtime files, so it cannot package
+source-control metadata, documentation, a prior `.xpi`, or other local artifacts.
 
 ---
 

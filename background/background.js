@@ -24,11 +24,11 @@ async function openProgress(initialMsg) {
   return win.id;
 }
 
-async function updateProgress(html, opts = {}) {
+async function updateProgress(text, opts = {}) {
   try {
     await browser.runtime.sendMessage({
       action: "progressUpdate",
-      html,
+      text,
       showClose: opts.showClose || false,
       autoClose: opts.autoClose || 0
     });
@@ -87,7 +87,7 @@ browser.menus.onClicked.addListener(async (info, tab) => {
 
     // Open progress window
     const hint = selectedText ? " (selected text)" : "";
-    await openProgress(`<span class="spinner"></span> Reading email: <b>${escapeHtml(subject)}</b>${hint}`);
+    await openProgress(`⏳ Reading email: ${subject}${hint}`);
 
     const full = await browser.messages.getFull(msg.id);
     const fullBody = extractBody(full);
@@ -114,19 +114,19 @@ browser.menus.onClicked.addListener(async (info, tab) => {
     });
 
     if (!settings.aiBaseUrl || !settings.aiApiKey || !settings.aiModel) {
-      await updateProgress(`<span class="error">❌ AI not configured. Go to Add-ons → Email to Calendar Event → Preferences.</span>`, { showClose: true });
+      await updateProgress("❌ AI not configured. Go to Add-ons → Email to Calendar Event → Preferences.", { showClose: true });
       return;
     }
     if (settings.calendars.length === 0) {
-      await updateProgress(`<span class="error">❌ No calendars configured. Go to Add-ons → Email to Calendar Event → Preferences.</span>`, { showClose: true });
+      await updateProgress("❌ No calendars configured. Go to Add-ons → Email to Calendar Event → Preferences.", { showClose: true });
       return;
     }
 
     // Call AI
     await updateProgress(
-      `<span class="spinner"></span> Contacting AI...\n` +
-      `   Model: <b>${escapeHtml(settings.aiModel)}</b>\n` +
-      `   Email: <b>${escapeHtml(subject)}</b>\n` +
+      `⏳ Contacting AI...\n` +
+      `   Model: ${settings.aiModel}\n` +
+      `   Email: ${subject}\n` +
       `   Waiting for response...`
     );
 
@@ -135,18 +135,18 @@ browser.menus.onClicked.addListener(async (info, tab) => {
       parsed = await callAI(settings, subject, from, date, bodyForAI, !!selectedText);
     } catch (e) {
       await updateProgress(
-        `<span class="error">❌ AI Error</span>\n\n${escapeHtml(e.message)}`,
+        `❌ AI Error\n\n${e.message}`,
         { showClose: true }
       );
       return;
     }
 
     if (!parsed) {
-      await updateProgress(`<span class="error">❌ Failed to parse event details from email.</span>`, { showClose: true });
+      await updateProgress("❌ Failed to parse event details from email.", { showClose: true });
       return;
     }
 
-    await updateProgress(`<span class="success">✅ AI parsed successfully. Opening editor...</span>`, { autoClose: 1500 });
+    await updateProgress("✅ AI parsed successfully. Opening editor...", { autoClose: 1500 });
 
     // Open confirm popup
     const popupUrl = browser.runtime.getURL("confirm/confirm.html");
@@ -166,57 +166,62 @@ browser.menus.onClicked.addListener(async (info, tab) => {
 
   } catch (e) {
     console.error("[email2event] error:", e);
-    await updateProgress(`<span class="error">❌ Error: ${escapeHtml(e.message)}</span>`, { showClose: true });
+    await updateProgress(`❌ Error: ${e.message}`, { showClose: true });
   }
 });
 
-// Listen for messages from popups
-browser.runtime.onMessage.addListener(async (message) => {
+// Listen for messages from popups. Do not declare this listener async: an async
+// listener returns a Promise for every message, which blocks other listeners.
+browser.runtime.onMessage.addListener((message) => {
   if (message.action === "progressReady") {
     if (progressResolve) {
       progressResolve();
       progressResolve = null;
     }
-    return;
+    return undefined;
   }
 
   if (message.action === "createEvent") {
-    let progressOpened = false;
-    try {
-      const settings = await browser.storage.local.get({ calendars: [] });
-      const cal = settings.calendars.find(c => c.name === message.calendarName);
-      if (!cal) {
-        notify("Error", `Calendar "${message.calendarName}" not found.`);
-        return;
-      }
+    return handleCreateEvent(message);
+  }
+  return undefined;
+});
 
-      // Open progress for CalDAV write
-      await openProgress(`<span class="spinner"></span> Writing to CalDAV: <b>${escapeHtml(cal.name)}</b>...`);
-      progressOpened = true;
+async function handleCreateEvent(message) {
+  let progressOpened = false;
+  try {
+    const settings = await browser.storage.local.get({ calendars: [] });
+    const cal = settings.calendars.find(c => c.name === message.calendarName);
+    if (!cal) {
+      notify("Error", `Calendar "${message.calendarName}" not found.`);
+      return;
+    }
 
-      console.log("[email2event] Writing to CalDAV:", cal.name, cal.url, message.eventData);
-      await writeToCalDAV(cal, message.eventData);
-      console.log("[email2event] CalDAV write succeeded");
+    if (!await hasHostPermission(cal.url)) {
+      throw new Error("Permission for this CalDAV server has not been granted. Open Preferences and save the settings to grant it.");
+    }
 
-      const typeLabel = message.eventData.type === "task" ? "Task" : "Event";
-      await updateProgress(
-        `<span class="success">✅ ${typeLabel} created: <b>${escapeHtml(message.eventData.title)}</b></span>\n\n` +
-        `💡 Right-click your calendar → Synchronize to see it immediately.`,
-        { showClose: true, autoClose: 5000 }
-      );
-    } catch (e) {
-      console.error("[email2event] CalDAV write error:", e);
-      if (progressOpened) {
-        await updateProgress(
-          `<span class="error">❌ CalDAV Error</span>\n\n${escapeHtml(e.message)}`,
-          { showClose: true }
-        );
-      } else {
-        notify("CalDAV Error", e.message);
-      }
+    await openProgress(`⏳ Writing to CalDAV: ${cal.name}...`);
+    progressOpened = true;
+
+    console.log("[email2event] Writing to CalDAV:", cal.name, cal.url, message.eventData);
+    await writeToCalDAV(cal, message.eventData);
+    console.log("[email2event] CalDAV write succeeded");
+
+    const typeLabel = message.eventData.type === "task" ? "Task" : "Event";
+    await updateProgress(
+      `✅ ${typeLabel} created: ${message.eventData.title}\n\n💡 Right-click your calendar → Synchronize to see it immediately.`,
+      { showClose: true, autoClose: 5000 }
+    );
+  } catch (e) {
+    console.error("[email2event] CalDAV write error:", e);
+    if (progressOpened) {
+      await updateProgress(`❌ CalDAV Error\n\n${e.message}`, { showClose: true });
+    } else {
+      notify("CalDAV Error", e.message);
     }
   }
-});
+}
 
 // ── AI Call (multi-provider) ──────────────────────────
 async function callAI(settings, subject, from, date, body, isSelectedText) {
@@ -224,6 +229,10 @@ async function callAI(settings, subject, from, date, body, isSelectedText) {
   const baseUrl = (settings.aiBaseUrl || "").replace(/\/+$/, "");
   const model = settings.aiModel;
   const apiKey = settings.aiApiKey;
+
+  if (!await hasHostPermission(baseUrl)) {
+    throw new Error("Permission for this AI server has not been granted. Open Preferences and save the settings to grant it.");
+  }
 
   const systemPrompt = `You are an assistant that extracts calendar event or task information from emails.
 Given an email, extract structured data and return ONLY valid JSON (no markdown, no explanation).
@@ -425,8 +434,13 @@ function escapeICalText(s) {
   return (s || "").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
 }
 
-function escapeHtml(s) {
-  return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+async function hasHostPermission(url) {
+  try {
+    const origin = new URL(url).origin;
+    return await browser.permissions.contains({ origins: [`${origin}/*`] });
+  } catch {
+    return false;
+  }
 }
 
 // ── Notifications (fallback) ────────────────────────────

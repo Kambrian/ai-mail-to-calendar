@@ -1,0 +1,8 @@
+# Generated Thunderbird extension packages
+dist/
+
+# Local add-on packages should never be included in a source package
+*.xpi
+
+# Python build-script bytecode
+__pycache__/

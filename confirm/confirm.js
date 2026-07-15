@@ -9,7 +9,9 @@ try {
   calendars = JSON.parse(params.get("calendars"));
   aiSettings = JSON.parse(params.get("aiSettings") || "null");
 } catch (e) {
-  document.body.innerHTML = "<p>Error: invalid data passed to confirm dialog.</p>";
+  document.body.replaceChildren(Object.assign(document.createElement("p"), {
+    textContent: "Error: invalid data passed to confirm dialog."
+  }));
   throw e;
 }
 
@@ -45,7 +47,7 @@ function setType(type) {
 
 function populateCalendars(type) {
   const calSelect = document.getElementById("calendar");
-  calSelect.innerHTML = "";
+  calSelect.replaceChildren();
   const filtered = calendars.filter(c => c.type === "both" || c.type === type);
   const list = filtered.length > 0 ? filtered : calendars;
   list.forEach(c => {
@@ -145,6 +147,11 @@ IMPORTANT: Return ONLY the JSON, no explanation.`;
       reqBody = JSON.stringify({ model: aiSettings.aiModel, messages: [{ role: "system", content: systemPrompt }, { role: "user", content: msg }], max_tokens: 2000, temperature: 0.1 });
     }
 
+    if (!await ensureHostPermission(endpoint)) {
+      addChatMsg("system", "Permission for this AI server was not granted. Open Preferences and save the settings first.");
+      return;
+    }
+
     const resp = await fetch(endpoint, { method: "POST", headers: reqHeaders, body: reqBody });
 
     if (!resp.ok) {
@@ -182,6 +189,17 @@ IMPORTANT: Return ONLY the JSON, no explanation.`;
   } finally {
     aiSendBtn.disabled = false;
     aiSendBtn.textContent = "Send";
+  }
+}
+
+async function ensureHostPermission(url) {
+  try {
+    const origin = new URL(url).origin;
+    const origins = [`${origin}/*`];
+    if (await browser.permissions.contains({ origins })) return true;
+    return await browser.permissions.request({ origins });
+  } catch {
+    return false;
   }
 }
 

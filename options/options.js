@@ -44,56 +44,51 @@ function onProviderChange(provider, keepValues = false) {
   }
 }
 
-function createAccountRow(acct = {}) {
-  const row = document.createElement("div");
-  row.className = "account-row";
-  row.innerHTML = `
-    <div class="field">
-      <label>Account Name</label>
-      <input type="text" class="acct-name" value="${esc(acct.name || "")}" placeholder="SJTU Mail">
-    </div>
-    <div class="field">
-      <label>CalDAV Base URL</label>
-      <input type="url" class="acct-url" value="${esc(acct.baseUrl || "")}" placeholder="https://mail.example.com/dav/user@example.com/">
-      <div class="hint">Parent URL that contains your calendar and task collections</div>
-    </div>
-    <div class="field-row">
-      <div class="field">
-        <label>Username</label>
-        <input type="text" class="acct-user" value="${esc(acct.username || "")}" placeholder="user@example.com">
-      </div>
-      <div class="field">
-        <label>Password</label>
-        <input type="password" class="acct-pass" value="${esc(acct.password || "")}" placeholder="••••••••">
-      </div>
-    </div>
-    <div class="field-row">
-      <div class="field">
-        <label>Events Collection Path</label>
-        <input type="text" class="acct-event-path" value="${esc(acct.eventPath || "Calendar")}" placeholder="Calendar">
-        <div class="hint">Subfolder name for events (e.g. "Calendar")</div>
-      </div>
-      <div class="field">
-        <label>Tasks Collection Path</label>
-        <input type="text" class="acct-task-path" value="${esc(acct.taskPath || "Tasks")}" placeholder="Tasks">
-        <div class="hint">Subfolder name for tasks (e.g. "Task" or "Tasks")</div>
-      </div>
-    </div>
-    <div class="account-actions">
-      <button class="btn-test-acct">🔗 Test Connection</button>
-      <button class="btn-discover">🔍 Auto-Discover</button>
-      <button class="btn-danger remove-acct">✕ Remove</button>
-    </div>
-    <div class="acct-status"></div>
-  `;
-  row.querySelector(".remove-acct").addEventListener("click", () => row.remove());
-  row.querySelector(".btn-test-acct").addEventListener("click", () => testAccountConnection(row));
-  row.querySelector(".btn-discover").addEventListener("click", () => autoDiscover(row));
-  return row;
+function makeElement(tag, { className, textContent, type, value, placeholder } = {}) {
+  const el = document.createElement(tag);
+  if (className) el.className = className;
+  if (textContent !== undefined) el.textContent = textContent;
+  if (type) el.type = type;
+  if (value !== undefined) el.value = value;
+  if (placeholder) el.placeholder = placeholder;
+  return el;
 }
 
-function esc(s) {
-  return s.replace(/"/g, "&quot;").replace(/</g, "&lt;");
+function createField(labelText, inputClass, inputType, value, placeholder, hintText) {
+  const field = makeElement("div", { className: "field" });
+  field.appendChild(makeElement("label", { textContent: labelText }));
+  field.appendChild(makeElement("input", { className: inputClass, type: inputType, value, placeholder }));
+  if (hintText) field.appendChild(makeElement("div", { className: "hint", textContent: hintText }));
+  return field;
+}
+
+function createAccountRow(acct = {}) {
+  const row = makeElement("div", { className: "account-row" });
+  row.appendChild(createField("Account Name", "acct-name", "text", acct.name || "", "SJTU Mail"));
+  row.appendChild(createField("CalDAV Base URL", "acct-url", "url", acct.baseUrl || "", "https://mail.example.com/dav/user@example.com/", "Parent URL that contains your calendar and task collections"));
+
+  const credentials = makeElement("div", { className: "field-row" });
+  credentials.appendChild(createField("Username", "acct-user", "text", acct.username || "", "user@example.com"));
+  credentials.appendChild(createField("Password", "acct-pass", "password", acct.password || "", "••••••••"));
+  row.appendChild(credentials);
+
+  const collections = makeElement("div", { className: "field-row" });
+  collections.appendChild(createField("Events Collection Path", "acct-event-path", "text", acct.eventPath || "Calendar", "Calendar", "Subfolder name for events (e.g. \"Calendar\")"));
+  collections.appendChild(createField("Tasks Collection Path", "acct-task-path", "text", acct.taskPath || "Tasks", "Tasks", "Subfolder name for tasks (e.g. \"Task\" or \"Tasks\")"));
+  row.appendChild(collections);
+
+  const actions = makeElement("div", { className: "account-actions" });
+  const testButton = makeElement("button", { className: "btn-test-acct", type: "button", textContent: "🔗 Test Connection" });
+  const discoverButton = makeElement("button", { className: "btn-discover", type: "button", textContent: "🔍 Auto-Discover" });
+  const removeButton = makeElement("button", { className: "btn-danger remove-acct", type: "button", textContent: "✕ Remove" });
+  actions.append(testButton, discoverButton, removeButton);
+  row.appendChild(actions);
+  row.appendChild(makeElement("div", { className: "acct-status" }));
+
+  removeButton.addEventListener("click", () => row.remove());
+  testButton.addEventListener("click", () => testAccountConnection(row));
+  discoverButton.addEventListener("click", () => autoDiscover(row));
+  return row;
 }
 
 function getAccounts() {
@@ -160,7 +155,7 @@ async function loadSettings() {
   }
 
   const list = document.getElementById("accountList");
-  list.innerHTML = "";
+  list.replaceChildren();
   if (accounts.length === 0) {
     list.appendChild(createAccountRow());
   } else {
@@ -185,6 +180,15 @@ async function saveSettings() {
   }
   if (accounts.length === 0) {
     showStatus("Please add at least one CalDAV account.", "error");
+    return;
+  }
+
+  const hostsGranted = await requestHostPermissions([
+    document.getElementById("aiBaseUrl").value.trim(),
+    ...accounts.map(account => account.baseUrl)
+  ]);
+  if (!hostsGranted) {
+    showStatus("Host permission is required for the configured AI and CalDAV servers.", "error");
     return;
   }
 
@@ -224,6 +228,10 @@ async function testAiConnection() {
 
   if (!baseUrl || !apiKey || !model) {
     showStatus("⚠️ Fill in Base URL, API Key, and Model ID first.", "error");
+    return;
+  }
+  if (!await requestHostPermissions([baseUrl])) {
+    showStatus("Host permission is required to test this AI server.", "error");
     return;
   }
 
@@ -289,6 +297,17 @@ async function testAiConnection() {
   }
 }
 
+async function requestHostPermissions(urls) {
+  try {
+    const origins = [...new Set(urls.filter(Boolean).map(url => `${new URL(url).origin}/*`))];
+    if (origins.length === 0) return true;
+    if (await browser.permissions.contains({ origins })) return true;
+    return await browser.permissions.request({ origins });
+  } catch {
+    return false;
+  }
+}
+
 // ── Test Account Connection ─────────────────────────────
 async function testAccountConnection(row) {
   const baseUrl = row.querySelector(".acct-url").value.trim().replace(/\/+$/, "");
@@ -299,6 +318,10 @@ async function testAccountConnection(row) {
 
   if (!baseUrl || !username || !password) {
     showAcctStatus(row, "⚠️ Fill in URL, username, and password first.", "error");
+    return;
+  }
+  if (!await requestHostPermissions([baseUrl])) {
+    showAcctStatus(row, "Host permission is required to contact this CalDAV server.", "error");
     return;
   }
 
@@ -338,6 +361,10 @@ async function autoDiscover(row) {
 
   if (!baseUrl || !username || !password) {
     showAcctStatus(row, "⚠️ Fill in URL, username, and password first.", "error");
+    return;
+  }
+  if (!await requestHostPermissions([baseUrl])) {
+    showAcctStatus(row, "Host permission is required to contact this CalDAV server.", "error");
     return;
   }
 

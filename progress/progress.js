@@ -4,7 +4,7 @@ const closeBtn = document.getElementById("closeBtn");
 
 browser.runtime.onMessage.addListener((message) => {
   if (message.action === "progressUpdate") {
-    statusEl.innerHTML = message.html || "";
+    statusEl.textContent = message.text || "";
     if (message.showClose) {
       closeBtn.style.display = "inline-block";
     }
