@@ -30,6 +30,7 @@ const defaults = {
   aiApiKey: "",
   aiModel: "gpt-4o-mini",
   aiTimezone: "Asia/Shanghai",
+  remoteServicesEnabled: false,
   accounts: []
 };
 
@@ -128,6 +129,7 @@ async function loadSettings() {
   document.getElementById("aiApiKey").value = data.aiApiKey || "";
   document.getElementById("aiModel").value = data.aiModel || defaults.aiModel;
   document.getElementById("aiTimezone").value = data.aiTimezone || defaults.aiTimezone;
+  document.getElementById("remoteServicesEnabled").checked = data.remoteServicesEnabled === true;
   onProviderChange(provider, true); // update hints without overwriting values
 
   // Migration: convert old "calendars" format to new "accounts" format
@@ -171,6 +173,7 @@ async function saveSettings() {
     aiApiKey: document.getElementById("aiApiKey").value.trim(),
     aiModel: document.getElementById("aiModel").value.trim(),
     aiTimezone: document.getElementById("aiTimezone").value.trim() || "Asia/Shanghai",
+    remoteServicesEnabled: document.getElementById("remoteServicesEnabled").checked,
     accounts
   };
 
@@ -183,13 +186,15 @@ async function saveSettings() {
     return;
   }
 
-  const hostsGranted = await requestHostPermissions([
-    document.getElementById("aiBaseUrl").value.trim(),
-    ...accounts.map(account => account.baseUrl)
-  ]);
-  if (!hostsGranted) {
-    showStatus("Host permission is required for the configured AI and CalDAV servers.", "error");
-    return;
+  if (settings.remoteServicesEnabled) {
+    const hostsGranted = await requestHostPermissions([
+      document.getElementById("aiBaseUrl").value.trim(),
+      ...accounts.map(account => account.baseUrl)
+    ]);
+    if (!hostsGranted) {
+      showStatus("Host permission is required for the configured AI and CalDAV servers.", "error");
+      return;
+    }
   }
 
   // Also save in the old "calendars" format for background.js compatibility
@@ -217,10 +222,18 @@ async function saveSettings() {
   settings.calendars = calendars;
 
   await browser.storage.local.set(settings);
-  showStatus("Settings saved!", "success");
+  showStatus(settings.remoteServicesEnabled ? "Settings saved. External services are enabled." : "Settings saved. External services remain disabled.", "success");
+}
+
+function externalServicesAreEnabled() {
+  return document.getElementById("remoteServicesEnabled").checked;
 }
 
 async function testAiConnection() {
+  if (!externalServicesAreEnabled()) {
+    showStatus("Enable External services and data sharing, then save settings before testing an AI server.", "error");
+    return;
+  }
   const provider = document.getElementById("aiProvider").value;
   const baseUrl = document.getElementById("aiBaseUrl").value.trim().replace(/\/+$/, "");
   const apiKey = document.getElementById("aiApiKey").value.trim();
@@ -243,8 +256,8 @@ async function testAiConnection() {
     reqHeaders = { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" };
     reqBody = JSON.stringify({ model, max_tokens: 10, messages: [{ role: "user", content: "Reply with exactly one word: OK" }] });
   } else if (provider === "google") {
-    endpoint = `${baseUrl}/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    reqHeaders = { "Content-Type": "application/json" };
+    endpoint = `${baseUrl}/v1beta/models/${model}:generateContent`;
+    reqHeaders = { "Content-Type": "application/json", "x-goog-api-key": apiKey };
     reqBody = JSON.stringify({ contents: [{ parts: [{ text: "Reply with exactly one word: OK" }] }], generationConfig: { maxOutputTokens: 10 } });
   } else {
     endpoint = `${baseUrl}/chat/completions`;
@@ -310,6 +323,10 @@ async function requestHostPermissions(urls) {
 
 // ── Test Account Connection ─────────────────────────────
 async function testAccountConnection(row) {
+  if (!externalServicesAreEnabled()) {
+    showAcctStatus(row, "Enable External services and data sharing, then save settings before testing a CalDAV server.", "error");
+    return;
+  }
   const baseUrl = row.querySelector(".acct-url").value.trim().replace(/\/+$/, "");
   const username = row.querySelector(".acct-user").value.trim();
   const password = row.querySelector(".acct-pass").value.trim();
@@ -355,6 +372,10 @@ async function testAccountConnection(row) {
 
 // ── Auto-Discover Collections ───────────────────────────
 async function autoDiscover(row) {
+  if (!externalServicesAreEnabled()) {
+    showAcctStatus(row, "Enable External services and data sharing, then save settings before discovering CalDAV collections.", "error");
+    return;
+  }
   const baseUrl = row.querySelector(".acct-url").value.trim().replace(/\/+$/, "");
   const username = row.querySelector(".acct-user").value.trim();
   const password = row.querySelector(".acct-pass").value.trim();

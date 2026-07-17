@@ -80,6 +80,15 @@
   </div>
 
   <div class="section">
+    <h2>External services and data sharing</h2>
+    <label style="display: flex; gap: 8px; align-items: flex-start; cursor: pointer;">
+      <input type="checkbox" id="remoteServicesEnabled" style="width: auto; margin-top: 3px;">
+      <span>I want to enable external AI and CalDAV services. When I use this add-on, it sends the email subject, sender, date, and email body to the AI provider configured above. It sends the event or task details I approve, plus my CalDAV credentials, to the CalDAV server configured below. No email data is sent until I enable this setting and save.</span>
+    </label>
+    <div class="hint" style="margin-top: 8px;">You can disable this setting at any time. Testing or discovering a server also requires this setting to be enabled.</div>
+  </div>
+
+  <div class="section">
     <h2>📅 CalDAV Accounts</h2>
     <div class="hint" style="margin-bottom: 12px;">
       Add your CalDAV accounts. Enter the parent URL and the plugin will use the event/task sub-paths.<br>

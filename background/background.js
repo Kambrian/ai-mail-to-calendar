@@ -39,7 +39,7 @@ async function updateProgress(text, opts = {}) {
 
 async function closeProgress() {
   if (progressWindowId) {
-    try { await browser.windows.remove(progressWindowId); } catch {}
+    try { await browser.windows.remove(progressWindowId); } catch { /* The window may already be closed. */ }
     progressWindowId = null;
   }
 }
@@ -51,37 +51,17 @@ browser.menus.create({
   contexts: ["message_list"]
 });
 
-browser.menus.create({
-  id: "email-to-event-content",
-  title: "Create Event/Task from Email",
-  contexts: ["page", "selection"]
-});
-
-browser.menus.onClicked.addListener(async (info, tab) => {
-  const validIds = ["email-to-event-list", "email-to-event-content"];
-  if (!validIds.includes(info.menuItemId)) return;
+browser.menus.onClicked.addListener(async (info) => {
+  if (info.menuItemId !== "email-to-event-list") return;
 
   try {
-    let msg, selectedText = null;
-
-    if (info.menuItemId === "email-to-event-list") {
-      const selectedMessages = info.selectedMessages;
-      if (!selectedMessages || selectedMessages.messages.length === 0) {
-        notify("No email selected", "Please select an email first.");
-        return;
-      }
-      msg = selectedMessages.messages[0];
-    } else {
-      if (info.selectionText) {
-        selectedText = info.selectionText;
-      }
-      const msgFromTab = await browser.messageDisplay.getDisplayedMessage(tab.id);
-      if (!msgFromTab) {
-        notify("No email", "Could not get the current email.");
-        return;
-      }
-      msg = msgFromTab;
+    const selectedMessages = info.selectedMessages;
+    if (!selectedMessages || selectedMessages.messages.length === 0) {
+      notify("No email selected", "Please select an email first.");
+      return;
     }
+    const msg = selectedMessages.messages[0];
+    const selectedText = null;
 
     const subject = msg.subject || "(no subject)";
 
@@ -110,8 +90,13 @@ browser.menus.onClicked.addListener(async (info, tab) => {
 
     // Load settings
     const settings = await browser.storage.local.get({
-      aiProvider: "openai", aiBaseUrl: "", aiApiKey: "", aiModel: "", aiTimezone: "Asia/Shanghai", calendars: []
+      aiProvider: "openai", aiBaseUrl: "", aiApiKey: "", aiModel: "", aiTimezone: "Asia/Shanghai", calendars: [], remoteServicesEnabled: false
     });
+
+    if (!settings.remoteServicesEnabled) {
+      await updateProgress("❌ External services are disabled. Open Preferences, review the data-sharing notice, enable external services, and save.", { showClose: true });
+      return;
+    }
 
     if (!settings.aiBaseUrl || !settings.aiApiKey || !settings.aiModel) {
       await updateProgress("❌ AI not configured. Go to Add-ons → Email to Calendar Event → Preferences.", { showClose: true });
@@ -153,8 +138,7 @@ browser.menus.onClicked.addListener(async (info, tab) => {
     const params = new URLSearchParams({
       data: JSON.stringify(parsed),
       sourceEmail: JSON.stringify(sourceEmail),
-      calendars: JSON.stringify(settings.calendars.map(c => ({ name: c.name, type: c.type || "both" }))),
-      aiSettings: JSON.stringify({ aiProvider: settings.aiProvider || "openai", aiBaseUrl: settings.aiBaseUrl, aiApiKey: settings.aiApiKey, aiModel: settings.aiModel, aiTimezone: settings.aiTimezone })
+      calendars: JSON.stringify(settings.calendars.map(c => ({ name: c.name, type: c.type || "both" })))
     });
 
     await browser.windows.create({
@@ -165,7 +149,6 @@ browser.menus.onClicked.addListener(async (info, tab) => {
     });
 
   } catch (e) {
-    console.error("[email2event] error:", e);
     await updateProgress(`❌ Error: ${e.message}`, { showClose: true });
   }
 });
@@ -190,7 +173,10 @@ browser.runtime.onMessage.addListener((message) => {
 async function handleCreateEvent(message) {
   let progressOpened = false;
   try {
-    const settings = await browser.storage.local.get({ calendars: [] });
+    const settings = await browser.storage.local.get({ calendars: [], remoteServicesEnabled: false });
+    if (!settings.remoteServicesEnabled) {
+      throw new Error("External services are disabled. Open Preferences, review the data-sharing notice, enable external services, and save.");
+    }
     const cal = settings.calendars.find(c => c.name === message.calendarName);
     if (!cal) {
       notify("Error", `Calendar "${message.calendarName}" not found.`);
@@ -204,9 +190,7 @@ async function handleCreateEvent(message) {
     await openProgress(`⏳ Writing to CalDAV: ${cal.name}...`);
     progressOpened = true;
 
-    console.log("[email2event] Writing to CalDAV:", cal.name, cal.url, message.eventData);
     await writeToCalDAV(cal, message.eventData);
-    console.log("[email2event] CalDAV write succeeded");
 
     const typeLabel = message.eventData.type === "task" ? "Task" : "Event";
     await updateProgress(
@@ -214,7 +198,6 @@ async function handleCreateEvent(message) {
       { showClose: true, autoClose: 5000 }
     );
   } catch (e) {
-    console.error("[email2event] CalDAV write error:", e);
     if (progressOpened) {
       await updateProgress(`❌ CalDAV Error\n\n${e.message}`, { showClose: true });
     } else {
@@ -225,6 +208,9 @@ async function handleCreateEvent(message) {
 
 // ── AI Call (multi-provider) ──────────────────────────
 async function callAI(settings, subject, from, date, body, isSelectedText) {
+  if (!settings.remoteServicesEnabled) {
+    throw new Error("External services are disabled. Open Preferences to enable them after reviewing the data-sharing notice.");
+  }
   const provider = settings.aiProvider || "openai";
   const baseUrl = (settings.aiBaseUrl || "").replace(/\/+$/, "");
   const model = settings.aiModel;
@@ -270,8 +256,8 @@ Return this exact JSON structure:
     reqHeaders = { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" };
     reqBody = JSON.stringify({ model, max_tokens: 2000, system: systemPrompt, messages: [{ role: "user", content: userPrompt }] });
   } else if (provider === "google") {
-    endpoint = `${baseUrl}/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    reqHeaders = { "Content-Type": "application/json" };
+    endpoint = `${baseUrl}/v1beta/models/${model}:generateContent`;
+    reqHeaders = { "Content-Type": "application/json", "x-goog-api-key": apiKey };
     reqBody = JSON.stringify({
       system_instruction: { parts: [{ text: systemPrompt }] },
       contents: [{ parts: [{ text: userPrompt }] }],
@@ -296,12 +282,9 @@ Return this exact JSON structure:
   else if (provider === "google") content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
   else content = data.choices?.[0]?.message?.content || "";
 
-  console.log("[email2event] Raw AI response:", content);
-
   const parsed = extractJSON(content);
   if (!parsed) {
-    console.error("[email2event] Failed to parse AI response:", content);
-    throw new Error("AI returned invalid JSON. Check console for raw response.");
+    throw new Error("AI returned invalid JSON.");
   }
   return parsed;
 }
@@ -311,12 +294,12 @@ function extractJSON(text) {
   stripped = stripped.replace(/<think>[\s\S]*/gi, "").trim();
 
   let cleaned = stripped.replace(/^[\s\S]*?```(?:json)?\s*\n?/i, "").replace(/\n?\s*```[\s\S]*$/i, "").trim();
-  try { return JSON.parse(cleaned); } catch {}
-  try { return JSON.parse(stripped); } catch {}
+  try { return JSON.parse(cleaned); } catch { /* Try the next JSON parsing strategy. */ }
+  try { return JSON.parse(stripped); } catch { /* Try the next JSON parsing strategy. */ }
   const match = stripped.match(/\{[\s\S]*\}/);
-  if (match) { try { return JSON.parse(match[0]); } catch {} }
+  if (match) { try { return JSON.parse(match[0]); } catch { /* Try the next JSON parsing strategy. */ } }
   const match2 = text.match(/\{[\s\S]*\}/);
-  if (match2) { try { return JSON.parse(match2[0]); } catch {} }
+  if (match2) { try { return JSON.parse(match2[0]); } catch { /* Try the next JSON parsing strategy. */ } }
   return null;
 }
 
@@ -406,15 +389,11 @@ async function writeToCalDAV(calendar, eventData) {
     "If-None-Match": "*"
   };
 
-  console.log(`[email2event] CalDAV PUT ${url}`);
   let resp = await xhrRequest("PUT", url, headers, ical);
-  console.log(`[email2event] PUT response: ${resp.status} ${resp.statusText}`);
 
   if (resp.status === 405 || resp.status === 404) {
     delete headers["If-None-Match"];
-    console.log(`[email2event] Fallback POST to ${calendar.url}`);
     resp = await xhrRequest("POST", calendar.url, headers, ical);
-    console.log(`[email2event] POST response: ${resp.status} ${resp.statusText}`);
   }
 
   if (resp.status < 200 || resp.status >= 300) {

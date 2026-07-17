@@ -1,19 +1,34 @@
 // confirm.js — Confirm popup logic with AI chat
 
 const params = new URLSearchParams(window.location.search);
-let eventData, calendars, aiSettings, sourceEmail;
+let eventData, calendars, sourceEmail;
+let aiSettings = null;
+let aiSettingsLoaded = false;
 
 try {
   eventData = JSON.parse(params.get("data"));
   sourceEmail = JSON.parse(params.get("sourceEmail") || "null");
   calendars = JSON.parse(params.get("calendars"));
-  aiSettings = JSON.parse(params.get("aiSettings") || "null");
 } catch (e) {
   document.body.replaceChildren(Object.assign(document.createElement("p"), {
     textContent: "Error: invalid data passed to confirm dialog."
   }));
   throw e;
 }
+
+async function loadAiSettings() {
+  try {
+    aiSettings = await browser.storage.local.get({
+      aiProvider: "openai", aiBaseUrl: "", aiApiKey: "", aiModel: "", aiTimezone: "Asia/Shanghai", remoteServicesEnabled: false
+    });
+  } catch (error) {
+    aiSettings = null;
+  } finally {
+    aiSettingsLoaded = true;
+  }
+}
+
+loadAiSettings();
 
 let selectedType = eventData.type || "event";
 
@@ -95,8 +110,16 @@ aiInput.addEventListener("keydown", (e) => {
 async function sendAiMessage() {
   const msg = aiInput.value.trim();
   if (!msg) return;
+  if (!aiSettingsLoaded) {
+    addChatMsg("system", "AI settings are still loading. Please try again in a moment.");
+    return;
+  }
   if (!aiSettings) {
     addChatMsg("system", "AI settings not available. Close and retry.");
+    return;
+  }
+  if (!aiSettings.remoteServicesEnabled) {
+    addChatMsg("system", "External services are disabled. Open Preferences, review the data-sharing notice, enable external services, and save.");
     return;
   }
 
@@ -138,8 +161,8 @@ IMPORTANT: Return ONLY the JSON, no explanation.`;
       reqHeaders = { "Content-Type": "application/json", "x-api-key": aiSettings.aiApiKey, "anthropic-version": "2023-06-01" };
       reqBody = JSON.stringify({ model: aiSettings.aiModel, max_tokens: 2000, system: systemPrompt, messages: [{ role: "user", content: msg }] });
     } else if (provider === "google") {
-      endpoint = `${baseUrl}/v1beta/models/${aiSettings.aiModel}:generateContent?key=${aiSettings.aiApiKey}`;
-      reqHeaders = { "Content-Type": "application/json" };
+      endpoint = `${baseUrl}/v1beta/models/${aiSettings.aiModel}:generateContent`;
+      reqHeaders = { "Content-Type": "application/json", "x-goog-api-key": aiSettings.aiApiKey };
       reqBody = JSON.stringify({ system_instruction: { parts: [{ text: systemPrompt }] }, contents: [{ parts: [{ text: msg }] }], generationConfig: { maxOutputTokens: 2000, temperature: 0.1 } });
     } else {
       endpoint = `${baseUrl}/chat/completions`;
@@ -226,10 +249,10 @@ function getCurrentFormData() {
 
 function extractJSON(text) {
   let cleaned = text.replace(/^[\s\S]*?```(?:json)?\s*\n?/i, "").replace(/\n?\s*```[\s\S]*$/i, "").trim();
-  try { return JSON.parse(cleaned); } catch {}
-  try { return JSON.parse(text.trim()); } catch {}
+  try { return JSON.parse(cleaned); } catch { /* Try the next JSON parsing strategy. */ }
+  try { return JSON.parse(text.trim()); } catch { /* Try the next JSON parsing strategy. */ }
   const match = text.match(/\{[\s\S]*\}/);
-  if (match) { try { return JSON.parse(match[0]); } catch {} }
+  if (match) { try { return JSON.parse(match[0]); } catch { /* Try the next JSON parsing strategy. */ } }
   return null;
 }
 
