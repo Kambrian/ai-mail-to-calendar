@@ -18,6 +18,7 @@ Create calendar events or tasks from emails using AI-powered parsing. Right-clic
 - 📝 **Selected text support** — select text in an email body and only send that to AI
 - 🔗 **Source email link** — created events/tasks include a source email link via iCal `URL` field (`mid:`)
 - 🔄 **Progress window** — persistent status display during AI parsing and CalDAV writing
+- 🔒 **Explicit external-services opt-in** — AI and CalDAV network requests stay blocked until enabled in Preferences
 
 ## Installation
 
@@ -36,6 +37,10 @@ Create calendar events or tasks from emails using AI-powered parsing. Right-clic
 ## Configuration
 
 After installing, go to **Add-ons → AI Mail to Calendar → Preferences** (or right-click the extension → **Preferences**).
+
+Before using AI parsing, CalDAV testing/discovery, or calendar creation, enable
+**External services and data sharing** in Preferences. This opt-in is disabled
+by default and explains what data is sent to the configured services.
 
 ### 🤖 AI Configuration
 
@@ -70,6 +75,9 @@ Any provider that supports the `/v1/chat/completions` endpoint works with the "O
 | Any OpenAI-compatible | `https://your-server.com/v1` | Custom endpoint |
 
 > **Tip:** Click **Test AI Connection** to verify your configuration. The test shows the endpoint, model, response, and latency.
+
+The test button is active when the required AI settings are present. If external
+services are not enabled and saved first, the add-on blocks the request.
 
 ### 📅 CalDAV Account Configuration
 
@@ -132,6 +140,27 @@ If AI didn't parse correctly:
 
 ---
 
+## Privacy and Network Access
+
+No AI or CalDAV network request is made until **External services and data
+sharing** is explicitly enabled and saved in Preferences.
+
+When enabled, AI parsing sends the selected email subject, sender, sent date,
+and either selected body text or up to the first 3,000 characters of extracted
+body text to the configured AI endpoint. AI adjustment requests send the current
+event/task draft and the user's adjustment text.
+
+CalDAV testing, discovery, and creation send requests to the configured CalDAV
+server. Calendar creation sends the approved event/task fields and CalDAV
+credentials to that server. Created items may include a `mid:` URL reference to
+the source email when a Message-ID is available.
+
+AI API keys and CalDAV credentials are stored in Thunderbird extension local
+storage. Google Gemini API keys are sent in request headers, not URL query
+strings.
+
+---
+
 ## Compatibility
 
 - **Thunderbird:** 128+ (Manifest V3 MailExtension)
@@ -161,7 +190,7 @@ source-control metadata, documentation, a prior `.xpi`, or other local artifacts
 
 ```
 ai-mail-to-calendar/
-├── manifest.json              # Extension manifest (MV2, Thunderbird 128+)
+├── manifest.json              # Extension manifest (MV3, Thunderbird 128+)
 ├── README.md                  # This file
 ├── LICENSE                    # MIT License
 ├── icons/

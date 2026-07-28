@@ -51,17 +51,29 @@ browser.menus.create({
   contexts: ["message_list"]
 });
 
-browser.menus.onClicked.addListener(async (info) => {
-  if (info.menuItemId !== "email-to-event-list") return;
+browser.menus.create({
+  id: "email-to-event-content",
+  title: "Create Event/Task from Email",
+  contexts: ["page", "selection"]
+});
+
+const selectedMessagesByTab = new Map();
+
+browser.mailTabs.onSelectedMessagesChanged.addListener((tab, selectedMessages) => {
+  selectedMessagesByTab.set(tab.id, selectedMessages);
+});
+
+browser.menus.onClicked.addListener(async (info, tab) => {
+  if (!["email-to-event-list", "email-to-event-content"].includes(info.menuItemId)) return;
 
   try {
-    const selectedMessages = info.selectedMessages;
+    const selectedMessages = info.selectedMessages || selectedMessagesByTab.get(tab?.id);
     if (!selectedMessages || selectedMessages.messages.length === 0) {
       notify("No email selected", "Please select an email first.");
       return;
     }
     const msg = selectedMessages.messages[0];
-    const selectedText = null;
+    const selectedText = info.menuItemId === "email-to-event-content" ? (info.selectionText || null) : null;
 
     const subject = msg.subject || "(no subject)";
 
